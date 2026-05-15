@@ -1,0 +1,8 @@
+{
+  "notifyChannelId": "C0123456789",
+  "rateLimitDelayMs": 1500,
+  "ignoreChannelIds": [],
+  "ignoreBots": true,
+  "userInfoCacheTtlMs": 600000,
+  "channelInfoCacheTtlMs": 600000
+}

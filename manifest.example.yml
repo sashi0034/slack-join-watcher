@@ -1,0 +1,28 @@
+display_information:
+  name: Join Watcher
+  description: Announces channel joins to a configured channel.
+  background_color: "#2c2d30"
+
+features:
+  bot_user:
+    display_name: Join Watcher
+    always_online: true
+
+oauth_config:
+  scopes:
+    bot:
+      - channels:read
+      - groups:read
+      - chat:write
+      - chat:write.customize
+      - users:read
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - member_joined_channel
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
