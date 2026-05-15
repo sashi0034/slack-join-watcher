@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { App, LogLevel } from '@slack/bolt';
-import type { WebClient } from '@slack/web-api';
+import { WebClient } from '@slack/web-api';
 import { loadConfig } from './config';
 import { RateLimitedQueue } from './queue';
 import { TtlCache } from './cache';
@@ -9,6 +9,10 @@ const config = loadConfig();
 
 const botToken = requireEnv('SLACK_BOT_TOKEN');
 const appToken = requireEnv('SLACK_APP_TOKEN');
+// User token gives visibility into every channel the installing user is in,
+// which is how we get `member_joined_channel` for channels the bot itself
+// is not a member of (workspace apps don't have channels:read.public).
+const userToken = requireEnv('SLACK_USER_TOKEN');
 
 const app = new App({
   token: botToken,
@@ -16,6 +20,10 @@ const app = new App({
   socketMode: true,
   logLevel: LogLevel.INFO,
 });
+
+// Read-side client uses the user token: `users.info` and `conversations.info`
+// resolve for any channel the installing user can see.
+const userClient = new WebClient(userToken);
 
 const queue = new RateLimitedQueue(config.rateLimitDelayMs);
 
@@ -42,11 +50,11 @@ app.event('member_joined_channel', async ({ event, client }) => {
 
   queue.enqueue(async () => {
     try {
-      const user = await fetchUserDisplay(client, event.user);
+      const user = await fetchUserDisplay(userClient, event.user);
       if (!user) return;
       if (config.ignoreBots && user.isBot) return;
 
-      const channel = await fetchChannelDisplay(client, event.channel);
+      const channel = await fetchChannelDisplay(userClient, event.channel);
       if (!channel) return;
 
       const text =

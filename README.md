@@ -21,31 +21,45 @@ Slack ワークスペース内で **メンバーがチャンネルに参加し�
 
 ## 必要な Slack 権限 (Scopes / Events)
 
+> **重要**: ボットトークンだけでは「ボットが入っているチャンネル」の `member_joined_channel`
+> しか受け取れません（Enterprise Grid 限定の `channels:read.public` を除く）。
+> このボットでは **インストール者のユーザートークン** で `member_joined_channel` を購読し、
+> ユーザーが入っている全チャンネルを監視します。
+
 > **手っ取り早く作るなら**: <https://api.slack.com/apps> → **Create New App** → **From an app manifest**
 > を選び、[manifest.example.yml](manifest.example.yml) の中身を貼り付ければ scope / event 設定が一括で入ります。
-> その後 **Install to Workspace** で OAuth トークン (`xoxb-...`) を取得し、
-> **Basic Information** → **App-Level Tokens** で `connections:write` 付きの App-Level Token (`xapp-...`) を発行してください。
+> その後 **Install to Workspace** すると **Bot Token (`xoxb-...`) と User Token (`xoxp-...`)** が両方発行されます。
+> 加えて **Basic Information** → **App-Level Tokens** で `connections:write` 付きの App-Level Token (`xapp-...`) を発行してください。
 
 手動で設定する場合は、Slack App 管理画面で以下を設定してください。
 
 ### Bot Token Scopes
 
+ボットは「投稿する人」だけ。各チャンネルに招待されている必要はありません
+（ただし通知投稿先である `notifyChannelId` のチャンネルには招待してください）。
+
 | Scope | 用途 |
 | --- | --- |
-| `channels:read` | パブリックチャンネルの情報取得、`member_joined_channel` イベント受信 |
-| `groups:read` | プライベートチャンネルの情報取得（必要な場合のみ・Bot がメンバーである必要あり） |
 | `chat:write` | 通知チャンネルへの投稿 |
 | `chat:write.customize` | 投稿時にユーザーの表示名・アイコンを使う |
-| `users:read` | ユーザーの表示名・プロフィール画像の取得 |
 
-> **アイコン画像のドメイン許可について**: `chat:write.customize` で `icon_url` を指定する場合、
-> Slack の CDN (`*.slack-edge.com` など) なら追加設定なしで使えます。
+### User Token Scopes
+
+ユーザートークンが「監視の目」。インストール者が入っている全チャンネルを見られます。
+
+| Scope | 用途 |
+| --- | --- |
+| `channels:read` | パブリックチャンネルの情報取得 + `member_joined_channel` 受信 |
+| `groups:read` | プライベートチャンネルの情報取得 + `member_joined_channel` 受信 |
+| `users:read` | ユーザーの表示名・プロフィール画像の取得 |
 
 ### Event Subscriptions
 
-`Subscribe to bot events` で以下を購読:
+`Subscribe to events on behalf of users` (= `user_events`) に以下を追加:
 
 - `member_joined_channel`
+
+> **`bot_events` 側に追加しないこと**: 両方に入れるとイベントが二重発火します。
 
 ### Socket Mode
 
@@ -53,17 +67,12 @@ Slack ワークスペース内で **メンバーがチャンネルに参加し�
 - **Basic Information** → **App-Level Tokens** で `connections:write` 付きの App-Level Token (`xapp-...`) を発行
 - 発行したトークンを `.env` の `SLACK_APP_TOKEN` に設定
 
-### ユーザートークンを使う場合（オプション）
+### 何が見えて何が見えないか
 
-> ボット権限だけでワークスペース全体のパブリックチャンネルに対する
-> `member_joined_channel` イベントは受信できます（Bot がチャンネル未所属でも OK）。
->
-> プライベートチャンネルや、ボットが招待されていないチャンネルの情報を
-> 取得したい場合のみユーザートークンが必要になります。
-
-その場合は `User Token Scopes` に `channels:read` / `groups:read` などを追加し、
-`SLACK_USER_TOKEN` (`xoxp-...`) を発行してください。本実装では現状ボットトークンのみを
-使っていますが、必要に応じて `client` を user token 用 WebClient に差し替えてください。
+- 監視対象は **インストール者がメンバーであるチャンネルすべて**（パブリック / プライベート問わず）
+- ワークスペース管理者でインストールすればワークスペース全体に近い可視範囲になる
+- ユーザーが入っていないプライベートチャンネルの参加イベントは取れない
+- DM / Group DM では `member_joined_channel` は発火しない
 
 ---
 
@@ -79,7 +88,7 @@ npm install
 
 ```bash
 cp .env.example .env
-# SLACK_BOT_TOKEN と SLACK_APP_TOKEN を設定
+# SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_USER_TOKEN を設定
 ```
 
 ### 3. `config.json` を作る
@@ -158,6 +167,3 @@ Slack の rate limit (HTTP 429) を踏みにくくなります。
 - **ボット自身の参加通知を抑制**: `auth.test` で取得した bot user id と一致するイベントは
   スキップします。
 
-## License
-
-MIT

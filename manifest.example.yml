@@ -10,16 +10,22 @@ features:
 
 oauth_config:
   scopes:
+    # Bot only posts (with custom username/icon). It does not need to be a member
+    # of every channel it watches — events are received via user_events instead.
     bot:
-      - channels:read
-      - groups:read
       - chat:write
       - chat:write.customize
+    # User scopes give the app visibility into every channel the installing user
+    # is in. `member_joined_channel` events for those channels are delivered via
+    # `user_events` below.
+    user:
+      - channels:read
+      - groups:read
       - users:read
 
 settings:
   event_subscriptions:
-    bot_events:
+    user_events:
       - member_joined_channel
   interactivity:
     is_enabled: false
