@@ -35,6 +35,7 @@ interface UserDisplay {
 
 interface ChannelDisplay {
   name: string;
+  isPrivate: boolean;
 }
 
 const userCache = new TtlCache<UserDisplay>(config.userInfoCacheTtlMs);
@@ -56,6 +57,7 @@ app.event('member_joined_channel', async ({ event, client }) => {
 
       const channel = await fetchChannelDisplay(userClient, event.channel);
       if (!channel) return;
+      if (channel.isPrivate) return;
 
       const text =
         `:tada: *${escapeForSlack(user.displayName)}* ` +
@@ -134,10 +136,15 @@ async function fetchChannelDisplay(
   if (cached) return cached;
 
   const res = await client.conversations.info({ channel: channelId });
-  const channel = res.channel as { name?: string } | undefined;
+  const channel = res.channel as
+    | { name?: string; is_private?: boolean; is_group?: boolean; is_im?: boolean; is_mpim?: boolean }
+    | undefined;
   if (!channel?.name) return undefined;
 
-  const value: ChannelDisplay = { name: channel.name };
+  const value: ChannelDisplay = {
+    name: channel.name,
+    isPrivate: !!(channel.is_private || channel.is_group || channel.is_im || channel.is_mpim),
+  };
   channelCache.set(channelId, value);
   return value;
 }
